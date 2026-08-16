@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whale</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #2f81f7;
+    --user: #1f6feb;
+    --assistant: #21262d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header .title { font-weight: 600; font-size: 16px; }
+  header .title span { color: var(--accent); }
+  header .actions { display: flex; gap: 8px; }
+  button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--assistant); }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg { max-width: 78%; padding: 10px 14px; border-radius: 10px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user); }
+  .msg.assistant { align-self: flex-start; background: var(--assistant); border: 1px solid var(--border); }
+  .msg.error { align-self: flex-start; background: #3b1d1d; border: 1px solid #7f2a2a; color: #ffb3b3; }
+  .msg .meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  #status { color: var(--muted); font-size: 12px; }
+  form {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .send { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .send:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">🐳 <span>Whale</span></div>
+    <div class="actions">
+      <span id="status">就绪</span>
+      <button id="newSession" type="button" title="开始新会话">新会话</button>
+    </div>
+  </header>
+
+  <div id="log"></div>
+
+  <form id="form">
+    <input id="input" placeholder="发消息…" autocomplete="off" />
+    <button class="send" id="sendBtn" type="submit">发送</button>
+  </form>
+
+  <script>
+    const log = document.getElementById('log');
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusEl = document.getElementById('status');
+    const newBtn = document.getElementById('newSession');
+
+    const SESSION_KEY = 'whale-web-session';
+    let session = localStorage.getItem(SESSION_KEY) || crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, session);
+
+    function append(role, text) {
+      const el = document.createElement('div');
+      el.className = 'msg ' + role;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = role === 'user' ? '你' : 'Whale';
+      el.appendChild(meta);
+      const body = document.createElement('div');
+      body.textContent = text;
+      el.appendChild(body);
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+      return el;
+    }
+
+    function setBusy(busy) {
+      sendBtn.disabled = busy;
+      input.disabled = busy;
+      statusEl.textContent = busy ? '思考中…' : '就绪';
+    }
+
+    async function send(text) {
+      const clean = text.trim();
+      if (clean === '') return;
+      append('user', clean);
+      input.value = '';
+      setBusy(true);
+      try {
+        const res = await fetch('/v1/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: clean, session })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        append('assistant', data.reply || '(无回复)');
+      } catch (err) {
+        append('error', '错误: ' + (err && err.message ? err.message : String(err)));
+      } finally {
+        setBusy(false);
+        input.focus();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      send(input.value);
+    });
+
+    newBtn.addEventListener('click', () => {
+      session = crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, session);
+      log.innerHTML = '';
+      append('assistant', '已开始新会话。');
+    });
+
+    input.focus();
+  </script>
+</body>
+</html>

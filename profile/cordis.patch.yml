@@ -1,0 +1,70 @@
+# Whale agent surface, applied over dsh-base.
+#
+# Plugins are referenced by profile-relative paths (./whale/lib/*.js) so they
+# resolve from the profile directory; their own `@deepseek-ai/*` imports resolve
+# through the harness-maintained $DSH_HOME/profiles/node_modules fallback.
+
+- insert:
+    # Code Mode's worker thread, exactly as dsh-headless mounts it over dsh-base.
+    - id: code-runtime
+      name: '@deepseek-ai/dsh-code-runtime-worker-thread'
+
+    # Channel registry (whaleChannels service) — mounted unconditionally.
+    - id: whale-channels
+      name: './whale/lib/channels.js'
+
+    # Persistent memory (Hermes-style MEMORY.md / USER.md + memory tool).
+    - id: whale-memory
+      name: './whale/lib/memory.js'
+      inject: [tools]
+
+    # WeChat ClawBot adapter — native Tencent iLink Bot API (QR-scan login).
+    - id: whale-channel-wechat
+      name: './whale/lib/channel-wechat.js'
+      inject: [whaleChannels]
+      config:
+        botToken: !!js process.env.WHALE_WECHAT_BOT_TOKEN
+        tokenFile: !!js process.env.WHALE_WECHAT_TOKEN_FILE
+
+    # CLI grammar -> whaleStartup service.
+    - id: whale-startup
+      name: './whale/lib/startup.js'
+
+    # run / chat / doctor / status / skills / version dispatcher.
+    - id: whale-cli
+      name: './whale/lib/cli.js'
+      inject: [whaleStartup]
+
+    # HTTP gateway + channel routing (serve).
+    - id: whale-gateway
+      name: './whale/lib/gateway.js'
+      inject: [whaleStartup, whaleChannels]
+
+# Pin the default model for the whale profile (settings.yaml can still
+# override this at runtime once its user layer is read).
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-pro
+
+# Whale's agent persona.
+- id: system-prompt
+  config:
+    persona: >-
+      You are Whale, a helpful general-purpose agent built on the DeepSeek
+      Harness, powered by the {{model}} model. Your working directory is {{cwd}}.
+
+# Register Whale's shipped skills + the user skills dir. User skills live in
+# `$DSH_HOME/skills/` (installed via `whale skills install`); shipped skills are
+# bundled with the profile at `$DSH_HOME/profiles/whale/whale/skills`.
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - !!js (process.env.DSH_HOME ?? process.cwd()) + '/skills'
+      - !!js (process.env.DSH_HOME ?? process.cwd()) + '/profiles/whale/whale/skills'
+# File access + approval: controlled entirely by bin/whale.js, which sets
+# DSH_PERMISSION_MODE (from whale-config.json access field) in the spawn env.
+# dsh-base already reads that env for both sandbox-policy.mode and approval.policy,
+# so no profile override is needed here. Removing the previous
+# sandbox-policy/approval override fixed a !!js parsing regression with Cordis
+# patches that was crashing boot.

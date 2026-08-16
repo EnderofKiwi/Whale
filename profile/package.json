@@ -1,0 +1,13 @@
+{
+  "name": "dsh-profile-whale",
+  "private": true,
+  "type": "module",
+  "dependencies": {},
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base"
+      ]
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "whale-agent",
+  "description": "Whale — an AI agent built on the DeepSeek Harness: terminal chat, gateway, channels (WeChat ClawBot first), and skills.",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "whale": "bin/whale.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "profile",
+    "skills",
+    "scripts",
+    "webui",
+    "setup.ps1",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "agent",
+    "whale",
+    "cli",
+    "wechat"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File setup.ps1",
+    "test": "node --check bin/whale.js && node --check scripts/postinstall.js && node --check lib/startup.js && node --check lib/cli.js && node --check lib/chat.js && node --check lib/gateway.js && node --check lib/channels.js && node --check lib/channel-wechat.js && node --check lib/agent.js && node --check lib/config.js && node --check lib/memory.js"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-cmdline": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.6",
+    "commander": "^13.0.0",
+    "js-yaml": "^4.1.0"
+  }
+}
